@@ -26,16 +26,16 @@ export const NotificationProvider = ({ children }) => {
         const defaultNotifications = [
           {
             id: "welcome",
-            title: "Welcome aboard, " + user.first_name + "!",
-            description: `You are authenticated as ${user.role}. Start tracking tasks and expenses.`,
+            title: `Welcome to QuestFlow, ${user.first_name}`,
+            description: `You're signed in as ${user.role}. Finished tasks earn XP toward your next level.`,
             time: "Just now",
             read: false,
             type: "info",
           },
           {
             id: "protocol",
-            title: "Security Session Established",
-            description: "Your session token has been securely generated.",
+            title: "Signed in securely",
+            description: "Your session renews automatically while you work.",
             time: "2 mins ago",
             read: false,
             type: "success",
@@ -45,8 +45,8 @@ export const NotificationProvider = ({ children }) => {
         if (user.role === "Admin") {
           defaultNotifications.push({
             id: "admin-tip",
-            title: "Admin Panel Active",
-            description: "You have full access to manage projects, users, and view system reports.",
+            title: "Admin tools are on",
+            description: "You can manage users and projects and view team reports.",
             time: "5 mins ago",
             read: false,
             type: "warning",
