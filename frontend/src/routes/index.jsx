@@ -5,6 +5,7 @@ import { ToastProvider } from "../context/ToastContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import Spinner from "../components/common/Spinner";
+import ErrorBoundary from "../components/common/ErrorBoundary";
 
 // Layout templates
 import AuthLayout from "../layouts/AuthLayout";
@@ -35,6 +36,8 @@ const LoadingFallback = () => (
 const AppRoutes = () => {
   return (
     <BrowserRouter>
+      {/* Last line of defence: even a crash in a provider shows a recoverable message, not a blank page */}
+      <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
@@ -108,6 +111,7 @@ const AppRoutes = () => {
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 };

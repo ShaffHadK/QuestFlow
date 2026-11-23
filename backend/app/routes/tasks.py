@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.project import Project
 from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, TaskStatusUpdate
 from app.services.gamification_service import GamificationService
+from app.services.notification_service import NotificationService
 
 router = APIRouter()
 
@@ -134,6 +135,7 @@ def create_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+    NotificationService.task_assigned(db, task, current_user)
     return task
 
 @router.put("/{task_id}", response_model=TaskOut)
@@ -166,6 +168,7 @@ def update_task(
     ensure_employee_only_changes_status(current_user, schema)
     ensure_not_reopening_completed(task, schema.status)
     verify_task_references(db, schema.assigned_to_id, schema.project_id)
+    previous_assignee, previous_status = task.assigned_to_id, task.status
 
     if schema.title is not None:
         task.title = schema.title
@@ -191,6 +194,10 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    if task.assigned_to_id and task.assigned_to_id != previous_assignee:
+        NotificationService.task_assigned(db, task, current_user)
+    if task.status == "Completed" and previous_status != "Completed":
+        NotificationService.task_completed(db, task, current_user)
     return task
 
 @router.put("/{task_id}/status", response_model=TaskOut)
@@ -222,6 +229,7 @@ def update_task_status(
         )
 
     ensure_not_reopening_completed(task, schema.status)
+    previous_status = task.status
 
     if schema.status == "Completed" and task.status != "Completed" and task.assigned_to_id:
         assigned_user = db.get(User, task.assigned_to_id)
@@ -231,6 +239,8 @@ def update_task_status(
     task.status = schema.status
     db.commit()
     db.refresh(task)
+    if task.status == "Completed" and previous_status != "Completed":
+        NotificationService.task_completed(db, task, current_user)
     return task
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -245,6 +255,7 @@ def delete_task(
     task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found.")
+    NotificationService.remove_for_entity(db, f"task-{task.id}-", commit=False)
     db.delete(task)
     db.commit()
     return None

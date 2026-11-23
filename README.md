@@ -31,6 +31,7 @@ QuestFlow is a full-stack team workspace for tasks, expense claims and approvals
 - Drag-and-drop task board (To do, In progress, Done) with XP rewards, due dates and overdue flags. It works with a mouse, touch or the keyboard, and follows the same permissions as the buttons.
 - Every 500 XP is a new level, marked by a celebration with confetti and any newly unlocked achievements. There's also a team leaderboard with a top-three podium.
 - Expense claims with manager approval. Nobody can approve their own claim.
+- Live notifications created by the server and pushed to the browser within seconds: new tasks for you, claims approved or rejected, deadlines coming up, level-ups, and for managers new claims to review and teammates finishing work. Each one links to the right page, nobody is told about their own actions, and read state follows you across devices.
 - Three roles (Admin, Manager, Employee), enforced by the API and mirrored in the interface.
 
 **Smart features, all in the browser**

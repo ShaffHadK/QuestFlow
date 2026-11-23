@@ -36,6 +36,7 @@ const LevelUpCelebration = () => {
   const close = () => setCelebration(null);
 
   // Confetti, focus, Escape and auto-close while the celebration is showing.
+  // The server records the level-up as a notification; this component only celebrates it.
   useEffect(() => {
     if (!celebration) return;
     buttonRef.current?.focus({ preventScroll: true });

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Bell,
   List,
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useNotifications } from "../../context/NotificationContext";
 import ThemeToggle from "./ThemeToggle";
-import { Avatar, XpMeter, levelProgress } from "../ui/primitives";
+import { Avatar, XpMeter, levelProgress, timeAgo } from "../ui/primitives";
 
 /** Small anchored popover that closes on outside click and Escape. Scales from its top-right corner. */
 const Popover = ({ open, onClose, children, className = "", label }) => {
@@ -63,7 +64,8 @@ const NOTIF_ICON = {
 
 const Navbar = ({ pageTitle = "Dashboard", onOpenMenu }) => {
   const { user, logout } = useAuth();
-  const { notifications, markAsRead, markAllAsRead, clearAll, hasUnread } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, clearAll, hasUnread, unreadCount } = useNotifications();
+  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -84,7 +86,6 @@ const Navbar = ({ pageTitle = "Dashboard", onOpenMenu }) => {
     const t = setTimeout(() => setGain(null), 1900);
     return () => clearTimeout(t);
   }, [gain]);
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-6 lg:px-8">
@@ -146,11 +147,24 @@ const Navbar = ({ pageTitle = "Dashboard", onOpenMenu }) => {
             className="btn btn-ghost btn-icon relative"
             aria-label={hasUnread ? `Notifications, ${unreadCount} unread` : "Notifications"}
             aria-expanded={notifOpen}
+            data-testid="notif-bell"
           >
             <Bell size={19} weight="bold" />
-            {hasUnread && (
-              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-accent ring-2 ring-bg" />
-            )}
+            <AnimatePresence>
+              {hasUnread && (
+                <motion.span
+                  key="count"
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.4, opacity: 0 }}
+                  transition={{ type: "spring", duration: 0.35, bounce: 0.4 }}
+                  className="num absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[0.625rem] font-bold leading-none text-accent-ink ring-2 ring-bg"
+                  data-testid="notif-count"
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </button>
           <Popover open={notifOpen} onClose={() => setNotifOpen(false)} label="Notifications" className="w-[min(22rem,calc(100vw-2rem))]">
             <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
@@ -177,14 +191,21 @@ const Navbar = ({ pageTitle = "Dashboard", onOpenMenu }) => {
                   <button
                     type="button"
                     key={notif.id}
-                    onClick={() => markAsRead(notif.id)}
+                    data-testid="notif-item"
+                    onClick={() => {
+                      markAsRead(notif.id);
+                      if (notif.link) {
+                        setNotifOpen(false);
+                        navigate(notif.link);
+                      }
+                    }}
                     className={`row-hover flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2.5 text-left ${notif.read ? "" : "bg-accent/[0.06]"}`}
                   >
                     <span className="mt-0.5 shrink-0">{NOTIF_ICON[notif.type] || NOTIF_ICON.info}</span>
                     <span className="min-w-0 flex-1">
                       <span className={`block truncate text-[0.8125rem] font-semibold ${notif.read ? "text-fg-muted" : "text-fg"}`}>{notif.title}</span>
                       <span className="mt-0.5 block text-xs leading-snug text-fg-muted break-words">{notif.description}</span>
-                      <span className="mt-1 block text-[0.6875rem] text-fg-subtle">{notif.time}</span>
+                      <span className="mt-1 block text-[0.6875rem] text-fg-subtle">{notif.createdAt ? timeAgo(notif.createdAt) : notif.time}</span>
                     </span>
                     {!notif.read && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-label="Unread" />}
                   </button>

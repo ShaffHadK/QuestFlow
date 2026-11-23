@@ -52,7 +52,7 @@ QuestFlow/
 │   │   ├── models/      User, RefreshToken, Project, Task, Expense
 │   │   ├── routes/      auth, users, projects, tasks, expenses, reports
 │   │   ├── schemas/     Pydantic v2 request and response models
-│   │   ├── services/    AuthService, GamificationService
+│   │   ├── services/    AuthService, GamificationService, NotificationService
 │   │   └── main.py      app factory, CORS, router registration, table creation
 │   ├── scripts/         seed_e2e_users.py (test accounts)
 │   └── tests/           pytest suite (in-memory SQLite)
@@ -90,6 +90,7 @@ erDiagram
     USERS ||--o{ REFRESH_TOKENS : "has sessions"
     USERS ||--o{ TASKS : "assigned"
     USERS ||--o{ EXPENSES : "submits"
+    USERS ||--o{ NOTIFICATIONS : "receives"
     PROJECTS ||--o{ TASKS : "groups"
 
     USERS {
@@ -125,6 +126,16 @@ erDiagram
         datetime due_date
         int assigned_to_id FK
         int project_id FK
+    }
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        string key "unique per user"
+        string type "info | success | warning"
+        string title
+        string link
+        bool is_read
+        datetime created_at
     }
     EXPENSES {
         int id PK
@@ -198,6 +209,7 @@ All routes live under `/api/v1`. Interactive documentation is served at `/docs`.
 | Tasks | `GET /tasks/` (search and filters; employees receive only their own tasks), `/tasks/{id}` (403 for an employee opening someone else's task); `POST /tasks/`; `PUT /tasks/{id}`, `/tasks/{id}/status`; `DELETE /tasks/{id}` |
 | Expenses | `GET /expenses/` (filtered by role), `/expenses/{id}`; `POST /expenses/`; `PUT /expenses/{id}`, `/expenses/{id}/status`; `DELETE /expenses/{id}` |
 | Reports | `GET /reports/summary` (Admin) |
+| Notifications | `GET /notifications/` (own list, newest first), `/notifications/unread-count`, `/notifications/stream` (server-sent events); `PUT /notifications/{id}/read`, `/notifications/read-all`; `DELETE /notifications/` |
 
 ## 5. Frontend
 
@@ -226,7 +238,29 @@ The Tasks page is a three-column board (To do, In progress, Done) built with `@d
 
 `LevelUpCelebration` lives in the dashboard layout and watches the signed-in user's level. When the level rises during the session, whatever caused it, it shows the new level with a filling ring, confetti in the accent palette and any achievements unlocked by the jump. It never fires on sign-in or page load. It closes on click, Escape or after about five seconds, and drops the confetti under reduced motion. The top bar's XP meter also shows a short "+N XP" pop whenever points go up.
 
-### 5.5 Design system
+### 5.5 Notifications
+
+Notifications are created by the backend when things happen and pushed to the browser as they arrive.
+
+**Events (`services/notification_service.py`).** The person who caused an event is never notified about it.
+
+| Event | Who is notified |
+| --- | --- |
+| Task created for someone, or reassigned | The new assignee |
+| Task completed | Managers and admins. The assignee too, when someone else marked it done |
+| Claim submitted | Every active manager and admin except the submitter |
+| Claim approved or rejected | The submitter. Other reviewers' unread "to review" notes for that claim are removed |
+| Level up | The user |
+| Task due within 24 hours, or overdue in the last three days | The assignee (generated when they load notifications, so no scheduler is needed) |
+| New account | A welcome note |
+
+Each notification has a `key` naming its event, and `(user_id, key)` is unique, so an event is never stored twice. Deleting a task or claim removes its notifications.
+
+**Delivery.** `GET /notifications/stream` is a server-sent-events stream. It checks for the user's new rows every three seconds (one indexed query) and sends each as an event, with a keep-alive ping in between. The stream ends itself after four minutes and the browser reconnects with a fresh access token, which also stops open streams from holding up a deploy or reload. The browser reads the stream with `fetch` so the token travels in a header rather than the URL, reconnects with backoff after errors, and opens it about two seconds after the page loads so the page's own data comes first. Nothing is missed in between, because each connection asks only for notifications newer than the last one it has.
+
+**In the browser.** `NotificationContext` loads the list on sign-in, adds pushed notifications as they arrive, re-syncs when the tab regains focus (so read state matches across devices), and saves read, read-all and clear to the server. The bell shows an unread count, relative times, and opens the linked page on click.
+
+### 5.6 Design system
 
 | Element | Choice |
 | --- | --- |
@@ -338,9 +372,9 @@ Levels: **High** at 50 or more, **Medium** at 25, **Low** at 10.
 
 | Suite | Tool | Scope | Run |
 | --- | --- | --- | --- |
-| Backend | pytest with in-memory SQLite | Auth, RBAC, tasks, expenses, projects, security rules | `cd backend; pytest -v` |
-| Frontend units | Vitest | Receipt parser (amounts, dates, skew, merchant, category), risk engine (every signal, levels, edge cases), task assistant (tokenising, similarity, XP and assignee ranking) and insights (forecast, projects at risk, workload, spend) | `cd frontend; npm test` |
-| End to end | Playwright with Chromium | Auth, dashboard and insights, tasks (including drag and drop, the assistant and the level-up celebration), expenses and approvals (including risk flags and a real in-browser OCR scan of a generated receipt), projects, RBAC | `cd frontend; npm run test:e2e` (backend on :8000, frontend on :5173) |
+| Backend | pytest with in-memory SQLite | Auth, RBAC, tasks, expenses, projects, security rules, notifications (every event, who is and isn't told, clean-up, deadlines, read state, ownership) | `cd backend; pytest -v` |
+| Frontend units | Vitest | Receipt parser (amounts, dates, skew, merchant, category), risk engine (every signal, levels, edge cases), task assistant (tokenising, similarity, XP and assignee ranking), insights (forecast, projects at risk, workload, spend) | `cd frontend; npm test` |
+| End to end | Playwright with Chromium | Auth, dashboard and insights, notifications, tasks (including drag and drop, the assistant and the level-up celebration), expenses and approvals (including risk flags and a real in-browser OCR scan of a generated receipt), projects, RBAC | `cd frontend; npm run test:e2e` (backend on :8000, frontend on :5173) |
 
 The Playwright global setup seeds the three demo accounts through `backend/scripts/seed_e2e_users.py`.
 
@@ -364,4 +398,4 @@ These are known and intentionally out of scope for the current build:
 - **No migrations.** Schema changes rely on `create_all`, which adds missing tables but never alters existing ones.
 - **Receipt date.** The scanner reads the receipt date and shows it, but claims have no date field, so it is not stored.
 - **Completion dates.** Tasks don't record when they were finished, so the level forecast uses the average pace since joining rather than recent activity.
-- **Notifications** are kept per user in the browser rather than generated by the server.
+- **Notifications** reach people only inside the app. There are no emails or phone push alerts yet; both could hang off the same notification service.
