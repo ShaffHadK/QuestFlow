@@ -103,7 +103,9 @@ QuestFlow/
 | Manager | `manager@gmail.com` | `Manager@123` | Create and assign tasks, review claims |
 | Employee | `employee@gmail.com` | `Employee@123` | Work on assigned tasks, submit claims |
 
-Create them with `python scripts/seed_e2e_users.py` from `backend/`. Admin accounts can't be self-registered. These passwords are public, so don't seed them into a production database.
+Seven more demo teammates (Priya, Rohan, Aisha, Arjun, Sara, Meera, Kabir) sign in as `<name>@gmail.com` with `Demo@1234`. Admin accounts can't be self-registered.
+
+**Demo data.** `python scripts/seed_demo_data.py` (from `backend/`) fills an empty database with these accounts, five projects and about three months of tasks, expense claims and quests. It only seeds a database with no projects, so it's safe to run on every start, and it never changes existing accounts. `--reset` wipes and reseeds, and works only on a local database. These passwords are public, so treat the live demo as a demo.
 
 ---
 
@@ -128,7 +130,7 @@ cd backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python scripts/seed_e2e_users.py
+python scripts/seed_demo_data.py
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
@@ -176,7 +178,10 @@ npm run build
 ## Deployment
 
 - **Frontend:** Vercel or Netlify. Set `VITE_API_URL` to the deployed API. The OCR models are emitted as hashed static files and load only when someone opens the scanner.
-- **Backend:** Render web service running `uvicorn app.main:app`, with `DATABASE_URL`, `JWT_SECRET_KEY` and `JWT_REFRESH_SECRET_KEY` set.
+- **Backend:** Render web service (root directory `backend`), with `DATABASE_URL`, `JWT_SECRET_KEY` and `JWT_REFRESH_SECRET_KEY` set. Start command, which seeds the demo data the first time and then just starts the API:
+  ```
+  python scripts/seed_demo_data.py --allow-remote; uvicorn app.main:app --host 0.0.0.0 --port $PORT
+  ```
 - **Database:** Neon serverless PostgreSQL.
 
 ---

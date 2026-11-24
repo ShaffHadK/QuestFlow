@@ -10,8 +10,6 @@ backend/venv/
 *.egg-info/
 .pytest_cache/
 
-# Local dev-only scripts & seed data
-backend/scripts/seed_demo_data.py
 
 # Node & Dependencies
 node_modules/

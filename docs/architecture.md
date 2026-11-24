@@ -54,7 +54,7 @@ QuestFlow/
 │   │   ├── schemas/     Pydantic v2 request and response models
 │   │   ├── services/    AuthService, GamificationService, NotificationService, QuestService
 │   │   └── main.py      app factory, CORS, router registration, table creation
-│   ├── scripts/         seed_e2e_users.py (test accounts)
+│   ├── scripts/         seed_demo_data.py (demo team and history), seed_e2e_users.py (test accounts)
 │   └── tests/           pytest suite (in-memory SQLite)
 ├── frontend/
 │   ├── e2e/             Playwright specs
@@ -427,7 +427,7 @@ The Playwright global setup seeds the three demo accounts through `backend/scrip
 | Part | Host | Notes |
 | --- | --- | --- |
 | Frontend | Vercel or Netlify | `npm run build` produces static files. Set `VITE_API_URL` to the API base URL. Hashed assets, including the OCR models, can be cached indefinitely. |
-| Backend | Render web service | `uvicorn app.main:app`. Requires `DATABASE_URL`, `JWT_SECRET_KEY` and `JWT_REFRESH_SECRET_KEY`. |
+| Backend | Render web service | Start command `python scripts/seed_demo_data.py --allow-remote; uvicorn app.main:app --host 0.0.0.0 --port $PORT`. The seed fills an empty database with demo data and skips in a second once projects exist; it never modifies existing accounts and refuses `--reset` on any non-local database. The `;` means the API starts even if seeding fails. Requires `DATABASE_URL`, `JWT_SECRET_KEY` and `JWT_REFRESH_SECRET_KEY`. |
 | Database | Neon PostgreSQL | `postgres://` and `postgresql://` URLs are normalised to the `psycopg2` driver. |
 
 Local development can use PostgreSQL or SQL Server (`mssql+pyodbc://...`). Tables are created automatically on startup.
