@@ -23,6 +23,7 @@ const Tasks = lazy(() => import("../pages/tasks/Tasks"));
 const Expenses = lazy(() => import("../pages/expenses/Expenses"));
 const Approvals = lazy(() => import("../pages/approvals/Approvals"));
 const Gamification = lazy(() => import("../pages/gamification/Gamification"));
+const Quests = lazy(() => import("../pages/quests/Quests"));
 const ManageUsers = lazy(() => import("../pages/admin/ManageUsers"));
 const ManageProjects = lazy(() => import("../pages/admin/ManageProjects"));
 const SystemReports = lazy(() => import("../pages/admin/SystemReports"));
@@ -101,6 +102,7 @@ const AppRoutes = () => {
                     />
                     
                     <Route path="/gamification" element={<Gamification />} />
+                    <Route path="/quests" element={<Quests />} />
                   </Route>
 
                   {/* Catch-all fallback */}

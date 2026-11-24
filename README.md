@@ -17,7 +17,7 @@
   <a href="https://github.com/Shimrah07/QuestFlow"><img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT license" /></a>
 </p>
 
-QuestFlow is a full-stack team workspace for tasks, expense claims and approvals, with game mechanics on top. Finished tasks earn XP, XP builds levels, and the team competes on a leaderboard. Four smart features run entirely in the browser with no paid AI service: a receipt scanner that fills in expense claims from a photo, risk flags that point reviewers at suspicious claims, a task assistant that suggests XP and assignees, and dashboard insights.
+QuestFlow is a full-stack team workspace for tasks, expense claims and approvals, with game mechanics on top. Finished tasks earn XP, XP builds levels, weekly and team quests pay bonuses, and the team competes on a leaderboard. Four smart features run entirely in the browser with no paid AI service: a receipt scanner that fills in expense claims from a photo, risk flags that point reviewers at suspicious claims, a task assistant that suggests XP and assignees, and dashboard insights.
 
 <p align="center">
   <img src="./docs/screenshots/dashboard.png" alt="QuestFlow dashboard" width="900" />
@@ -30,6 +30,7 @@ QuestFlow is a full-stack team workspace for tasks, expense claims and approvals
 **Work and progress**
 - Drag-and-drop task board (To do, In progress, Done) with XP rewards, due dates and overdue flags. It works with a mouse, touch or the keyboard, and follows the same permissions as the buttons.
 - Every 500 XP is a new level, marked by a celebration with confetti and any newly unlocked achievements. There's also a team leaderboard with a top-three podium.
+- Quests on top of tasks. Everyone gets three weekly quests (finish 3 tasks, beat a deadline, earn 500 XP) with bonus XP, and managers can set team quests on a project ("finish 6 Website Revamp tasks by Friday") whose bonus pool is split by contribution. Bonuses arrive live and can trigger a level-up.
 - Expense claims with manager approval. Nobody can approve their own claim.
 - Live notifications created by the server and pushed to the browser within seconds: new tasks for you, claims approved or rejected, deadlines coming up, level-ups, and for managers new claims to review and teammates finishing work. Each one links to the right page, nobody is told about their own actions, and read state follows you across devices.
 - Three roles (Admin, Manager, Employee), enforced by the API and mirrored in the interface.
@@ -55,7 +56,8 @@ QuestFlow is a full-stack team workspace for tasks, expense claims and approvals
 | **Receipt scanner**<br/><img src="./docs/screenshots/receipt-scanner.png" alt="Receipt scanner reading a tilted receipt" width="440" /> | **Risk flags in Approvals**<br/><img src="./docs/screenshots/approvals-risk.png" alt="Approvals queue with risk explanations" width="440" /> |
 | **Task assistant**<br/><img src="./docs/screenshots/task-assistant.png" alt="New task dialog with XP and assignee suggestions" width="440" /> | **Level-up celebration**<br/><img src="./docs/screenshots/level-up.png" alt="Level-up celebration with confetti" width="440" /> |
 | **Expense claims**<br/><img src="./docs/screenshots/expenses.png" alt="Expense claims list" width="440" /> | **Leaderboard**<br/><img src="./docs/screenshots/leaderboard.png" alt="Leaderboard with podium" width="440" /> |
-| **Team reports**<br/><img src="./docs/screenshots/reports.png" alt="Admin reports" width="440" /> | **Light theme**<br/><img src="./docs/screenshots/dashboard-light.png" alt="Dashboard in light theme" width="440" /> |
+| **Quests**<br/><img src="./docs/screenshots/quests.png" alt="Weekly and team quests with progress" width="440" /> | **Team reports**<br/><img src="./docs/screenshots/reports.png" alt="Admin reports" width="440" /> |
+| **Light theme**<br/><img src="./docs/screenshots/dashboard-light.png" alt="Dashboard in light theme" width="440" /> | |
 
 ---
 

@@ -7,6 +7,7 @@ import {
   UsersThree,
   FolderSimple,
   ChartBar,
+  Flag,
 } from "@phosphor-icons/react";
 
 /** Single source of truth for nav items, their role access and page titles. */
@@ -22,7 +23,10 @@ export const NAV_SECTIONS = [
   },
   {
     label: "Team",
-    items: [{ to: "/gamification", label: "Leaderboard", icon: Trophy, roles: ["Admin", "Manager", "Employee"] }],
+    items: [
+      { to: "/quests", label: "Quests", icon: Flag, roles: ["Admin", "Manager", "Employee"] },
+      { to: "/gamification", label: "Leaderboard", icon: Trophy, roles: ["Admin", "Manager", "Employee"] },
+    ],
   },
   {
     label: "Admin",

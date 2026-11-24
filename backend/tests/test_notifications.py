@@ -48,8 +48,12 @@ def test_reviewers_hear_when_an_employee_finishes_and_the_employee_levels_up(cli
         notes = client.get(API, headers=get_auth_headers(reviewer)).json()
         assert notes[0]["title"] == "EmployeeOne finished a task"
         assert notes[0]["description"] == "Big migration · +600 XP"
-    # The employee is not told they finished it, but does get the level-up.
-    assert titles(client, employee_user1) == ["You reached level 2"]
+    # The employee is not told they finished it, but does get the level-up (and the weekly
+    # "Earn 500 XP" quest this 600 XP task completes).
+    mine = titles(client, employee_user1)
+    assert "You reached level 2" in mine
+    assert "Quest complete: Earn 500 XP" in mine
+    assert not any("finished a task" in t for t in mine)
 
 
 def test_assignee_hears_when_a_manager_marks_their_task_done(client: TestClient, db_session: Session, manager_user: User, admin_user: User, employee_user1: User):

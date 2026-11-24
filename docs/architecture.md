@@ -8,7 +8,7 @@ QuestFlow is a team workspace for three jobs:
 
 1. **Tasks.** Managers create tasks, set an XP reward and assign them. Finishing a task awards its XP to the assignee.
 2. **Expense claims.** Anyone submits claims; managers and admins approve or reject them. Nobody can approve their own claim.
-3. **Progress.** XP drives levels (every 500 XP), achievements and a team leaderboard. Tasks move across a drag-and-drop board, and reaching a new level triggers a celebration.
+3. **Progress.** XP drives levels (every 500 XP), achievements and a team leaderboard. Tasks move across a drag-and-drop board, and reaching a new level triggers a celebration. Weekly quests and manager-set team quests pay bonus XP on top of task rewards.
 
 Four features add intelligence without a server or a paid API:
 
@@ -49,10 +49,10 @@ QuestFlow/
 │   ├── app/
 │   │   ├── core/        config (env-driven settings), security (bcrypt, JWT), deps (DB session, auth, RBAC)
 │   │   ├── db/          SQLAlchemy engine and declarative base
-│   │   ├── models/      User, RefreshToken, Project, Task, Expense
-│   │   ├── routes/      auth, users, projects, tasks, expenses, reports
+│   │   ├── models/      User, RefreshToken, Project, Task, Expense, Notification, Quest, QuestProgress
+│   │   ├── routes/      auth, users, projects, tasks, expenses, reports, notifications, quests
 │   │   ├── schemas/     Pydantic v2 request and response models
-│   │   ├── services/    AuthService, GamificationService, NotificationService
+│   │   ├── services/    AuthService, GamificationService, NotificationService, QuestService
 │   │   └── main.py      app factory, CORS, router registration, table creation
 │   ├── scripts/         seed_e2e_users.py (test accounts)
 │   └── tests/           pytest suite (in-memory SQLite)
@@ -61,11 +61,11 @@ QuestFlow/
 │   ├── public/          logo and favicon
 │   └── src/
 │       ├── components/  common (shell, ErrorBoundary), ui (design-system primitives), expenses (ReceiptScanner),
-│       │                tasks (TaskAssistantPanel), dashboard (InsightsPanel), gamification (LevelUpCelebration)
+│       │                tasks (TaskAssistantPanel), dashboard (InsightsPanel, QuestsCard), gamification (LevelUpCelebration)
 │       ├── context/     Auth, Theme, Toast, Notification providers
 │       ├── layouts/     AuthLayout, DashboardLayout
 │       ├── lib/         ocr/ (engine + parser), expenseRisk.js, taskAssistant.js, insights.js, each with unit tests
-│       ├── pages/       auth, dashboard, tasks, expenses, approvals, gamification, admin
+│       ├── pages/       auth, dashboard, tasks, expenses, approvals, quests, gamification, admin
 │       ├── routes/      route table and ProtectedRoute guard
 │       └── services/    api.js (Axios), auth.js
 └── docs/                this document and screenshots
@@ -91,7 +91,10 @@ erDiagram
     USERS ||--o{ TASKS : "assigned"
     USERS ||--o{ EXPENSES : "submits"
     USERS ||--o{ NOTIFICATIONS : "receives"
+    USERS ||--o{ QUEST_PROGRESS : "contributes"
+    QUESTS ||--o{ QUEST_PROGRESS : "tracks"
     PROJECTS ||--o{ TASKS : "groups"
+    PROJECTS ||--o{ QUESTS : "team quests target"
 
     USERS {
         int id PK
@@ -136,6 +139,28 @@ erDiagram
         string link
         bool is_read
         datetime created_at
+    }
+    QUESTS {
+        int id PK
+        string kind "weekly | team"
+        string code "weekly template code"
+        string title
+        string metric "tasks_completed | tasks_on_time | xp_earned"
+        int target
+        int reward_xp
+        int project_id FK "team quests"
+        int created_by_id FK
+        datetime starts_at
+        datetime ends_at
+        string status "active | completed | expired | cancelled"
+    }
+    QUEST_PROGRESS {
+        int id PK
+        int quest_id FK
+        int user_id FK
+        int progress
+        int reward_paid
+        datetime completed_at
     }
     EXPENSES {
         int id PK
@@ -210,6 +235,7 @@ All routes live under `/api/v1`. Interactive documentation is served at `/docs`.
 | Expenses | `GET /expenses/` (filtered by role), `/expenses/{id}`; `POST /expenses/`; `PUT /expenses/{id}`, `/expenses/{id}/status`; `DELETE /expenses/{id}` |
 | Reports | `GET /reports/summary` (Admin) |
 | Notifications | `GET /notifications/` (own list, newest first), `/notifications/unread-count`, `/notifications/stream` (server-sent events); `PUT /notifications/{id}/read`, `/notifications/read-all`; `DELETE /notifications/` |
+| Quests | `GET /quests/` (this week's quests with the caller's progress, plus active and recent team quests); `POST /quests/team` (Manager, Admin); `DELETE /quests/{id}` (cancels; creator or Admin) |
 
 ## 5. Frontend
 
@@ -260,7 +286,25 @@ Each notification has a `key` naming its event, and `(user_id, key)` is unique, 
 
 **In the browser.** `NotificationContext` loads the list on sign-in, adds pushed notifications as they arrive, re-syncs when the tab regains focus (so read state matches across devices), and saves read, read-all and clear to the server. The bell shows an unread count, relative times, and opens the linked page on click.
 
-### 5.6 Design system
+### 5.6 Quests
+
+Quests give people a reason to come back each week and give managers a way to rally a team behind a project. All quest logic runs on the server (`services/quest_service.py`) and is driven by task completion, so there is no scheduler.
+
+**Weekly quests.** Everyone gets the same three personal quests each week (Monday to Sunday). They are created lazily the first time anyone loads quests or completes a task that week.
+
+| Quest | Counts | Target | Bonus |
+| --- | --- | --- | --- |
+| Finish 3 tasks | Any completed task | 3 | +100 XP |
+| Beat a deadline | A task finished before its due date | 1 | +50 XP |
+| Earn 500 XP | Task XP earned this week (quest bonuses don't count, so bonuses can't feed each other) | 500 | +75 XP |
+
+**Team quests.** A manager or admin picks an active project, a number of tasks (1 to 50), a bonus pool (25 to 5000 XP) and an end date (at most 90 days ahead). The people with tasks in that project are notified. Every task completed in the project before the end date counts. When the target is reached, the pool is split by contribution using the largest-remainder method, so the shares always add up exactly to the pool (300 XP over 2 and 1 tasks pays 200 and 100). The creator or an admin can cancel an active quest. Quests past their end date become expired when the board is next loaded.
+
+**Integrity.** Progress is stored per person in `QUEST_PROGRESS`, and each row records what it paid, so a quest pays out once. Because completed tasks are locked (section 4.5), a task can't be completed twice to farm progress. Bonuses go through `GamificationService.award_xp`, so they can trigger a level-up like any other XP.
+
+**In the browser.** The Quests page shows the weekly quests with progress bars, then the team quests with a bar segmented by contributor, each person's share and time left; finished and expired ones move to a collapsed "Recent" list. The dashboard has a compact quests card. Quest notifications arrive over the notification stream. A completed quest shows a toast and refreshes the user's XP straight away, so the XP meter and level-up celebration react without a reload, and any open Quests page reloads itself.
+
+### 5.7 Design system
 
 | Element | Choice |
 | --- | --- |
@@ -372,9 +416,9 @@ Levels: **High** at 50 or more, **Medium** at 25, **Low** at 10.
 
 | Suite | Tool | Scope | Run |
 | --- | --- | --- | --- |
-| Backend | pytest with in-memory SQLite | Auth, RBAC, tasks, expenses, projects, security rules, notifications (every event, who is and isn't told, clean-up, deadlines, read state, ownership) | `cd backend; pytest -v` |
+| Backend | pytest with in-memory SQLite | Auth, RBAC, tasks, expenses, projects, security rules, notifications (every event, who is and isn't told, clean-up, deadlines, read state, ownership), quests (weekly progress and one-time bonuses, team split and payout, permissions, validation, expiry, cancel) | `cd backend; pytest -v` |
 | Frontend units | Vitest | Receipt parser (amounts, dates, skew, merchant, category), risk engine (every signal, levels, edge cases), task assistant (tokenising, similarity, XP and assignee ranking), insights (forecast, projects at risk, workload, spend) | `cd frontend; npm test` |
-| End to end | Playwright with Chromium | Auth, dashboard and insights, notifications, tasks (including drag and drop, the assistant and the level-up celebration), expenses and approvals (including risk flags and a real in-browser OCR scan of a generated receipt), projects, RBAC | `cd frontend; npm run test:e2e` (backend on :8000, frontend on :5173) |
+| End to end | Playwright with Chromium | Auth, dashboard and insights, notifications, quests (weekly progress, a team quest from creation to payout, permissions), tasks (including drag and drop, the assistant and the level-up celebration), expenses and approvals (including risk flags and a real in-browser OCR scan of a generated receipt), projects, RBAC | `cd frontend; npm run test:e2e` (backend on :8000, frontend on :5173) |
 
 The Playwright global setup seeds the three demo accounts through `backend/scripts/seed_e2e_users.py`.
 
@@ -399,3 +443,4 @@ These are known and intentionally out of scope for the current build:
 - **Receipt date.** The scanner reads the receipt date and shows it, but claims have no date field, so it is not stored.
 - **Completion dates.** Tasks don't record when they were finished, so the level forecast uses the average pace since joining rather than recent activity.
 - **Notifications** reach people only inside the app. There are no emails or phone push alerts yet; both could hang off the same notification service.
+- **Weekly quests** use the server's local time for the Monday week boundary and are the same three for everyone. Team quests count tasks completed after the quest starts, and a task only counts toward its own project.

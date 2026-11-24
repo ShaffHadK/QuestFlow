@@ -100,9 +100,10 @@ def test_server_side_xp_awarding_on_task_completion(client: TestClient, db_sessi
     response = client.put(f"/api/v1/tasks/{task.id}/status", json={"status": "Completed"}, headers=emp1_headers)
     assert response.status_code == 200
 
-    # Verify XP and Level increased in database
+    # Verify XP and Level increased in database: 600 for the task, plus the weekly
+    # "Earn 500 XP" quest bonus (+75) that this single task also completes.
     db_session.refresh(employee_user1)
-    assert employee_user1.points == 600
+    assert employee_user1.points == 600 + 75
     assert employee_user1.level == 2
 
 

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
+import { useToast } from "./ToastContext";
 import api from "../services/api";
 
 const NotificationContext = createContext(null);
@@ -43,7 +44,8 @@ const parseEvent = (block) => {
  * live server-sent-events stream open so new ones arrive within seconds, and syncs read state.
  */
 export const NotificationProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
+  const { showToast } = useToast();
   // The list carries its owner's id so a sign-out or user switch never shows someone else's list.
   const [state, setState] = useState({ userId: null, items: [] });
   const lastIdRef = useRef(0);
@@ -102,6 +104,17 @@ export const NotificationProvider = ({ children }) => {
     let timer = null;
     let backoff = 1000;
 
+    // Quest results deserve a moment: a toast, fresh XP in the header (which also lets the
+    // level-up celebration fire), and a nudge for any open Quests page to reload.
+    const onLiveEvent = (item) => {
+      if (!item.key?.startsWith("quest-")) return;
+      window.dispatchEvent(new Event("quests-updated"));
+      if (item.key.endsWith("-complete")) {
+        showToast(`${item.title}. ${item.description}`, "success", 6000);
+        refreshUserProfile?.();
+      }
+    };
+
     const schedule = (ms) => {
       if (!stopped) timer = setTimeout(connect, ms);
     };
@@ -135,7 +148,9 @@ export const NotificationProvider = ({ children }) => {
             buffer = buffer.slice(cut + 2);
             if (evt?.event === "notification") {
               try {
-                addItems([toItem(JSON.parse(evt.data))]);
+                const item = toItem(JSON.parse(evt.data));
+                addItems([item]);
+                onLiveEvent(item);
               } catch {
                 /* ignore a malformed event */
               }

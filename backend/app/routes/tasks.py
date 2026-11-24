@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, TaskStatusUpdate
 from app.services.gamification_service import GamificationService
 from app.services.notification_service import NotificationService
+from app.services.quest_service import QuestService
 
 router = APIRouter()
 
@@ -198,6 +199,7 @@ def update_task(
         NotificationService.task_assigned(db, task, current_user)
     if task.status == "Completed" and previous_status != "Completed":
         NotificationService.task_completed(db, task, current_user)
+        QuestService.on_task_completed(db, task)
     return task
 
 @router.put("/{task_id}/status", response_model=TaskOut)
@@ -241,6 +243,7 @@ def update_task_status(
     db.refresh(task)
     if task.status == "Completed" and previous_status != "Completed":
         NotificationService.task_completed(db, task, current_user)
+        QuestService.on_task_completed(db, task)
     return task
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

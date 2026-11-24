@@ -33,6 +33,7 @@ import {
 } from "../../components/ui/primitives";
 import { getAchievements } from "../gamification/achievements";
 import InsightsPanel from "../../components/dashboard/InsightsPanel";
+import QuestsCard from "../../components/dashboard/QuestsCard";
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -86,18 +87,21 @@ const Dashboard = () => {
 
   const [tasks, setTasks] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [quests, setQuests] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [tasksRes, expensesRes] = await Promise.all([
+        const [tasksRes, expensesRes, questsRes] = await Promise.all([
           api.get("/tasks"),
           api.get("/expenses").catch(() => ({ data: [] })),
+          api.get("/quests/").catch(() => ({ data: null })),
         ]);
         setTasks(tasksRes.data);
         setExpenses(expensesRes.data || []);
+        setQuests(questsRes.data);
       } catch {
         showToast("Couldn't load your dashboard. Refresh to try again.", "error");
       } finally {
@@ -243,7 +247,7 @@ const Dashboard = () => {
 
       {/* Open work + achievements */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <StaggerItem className="surface flex flex-col lg:col-span-8">
+        <StaggerItem className="surface flex flex-col lg:col-span-8 lg:self-start">
           <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
             <h2 className="text-[0.9375rem] font-semibold text-fg">{showingMine ? "Your open tasks" : "Open tasks"}</h2>
             <Link to="/tasks" className="inline-flex items-center gap-1 text-[0.8125rem] font-medium text-fg-muted transition-colors hover:text-fg">
@@ -288,7 +292,9 @@ const Dashboard = () => {
           )}
         </StaggerItem>
 
-        <StaggerItem className="surface flex flex-col lg:col-span-4">
+        <StaggerItem className="flex flex-col gap-4 lg:col-span-4">
+          <QuestsCard board={quests} />
+          <div className="surface flex flex-1 flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
             <h2 className="text-[0.9375rem] font-semibold text-fg">Achievements</h2>
             <span className="num text-xs text-fg-subtle">
@@ -325,6 +331,7 @@ const Dashboard = () => {
               <Trophy size={14} weight="bold" />
               See team standings
             </Link>
+          </div>
           </div>
         </StaggerItem>
       </div>

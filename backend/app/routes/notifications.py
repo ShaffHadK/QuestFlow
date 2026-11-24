@@ -6,7 +6,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import Session
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_db, get_current_user, oauth2_scheme
 from app.db.session import SessionLocal
 from app.models.notification import Notification
 from app.models.user import User
@@ -82,13 +82,25 @@ def _deadline_check(user_id: int) -> None:
             NotificationService.deadline_notifications(db, user)
 
 
+def stream_user_id(token: str = Depends(oauth2_scheme)) -> int:
+    """
+    Authenticates the stream in its own short session that is closed straight away.
+
+    The usual get_current_user dependency borrows the request's session, which FastAPI keeps open
+    until the response ends. For a stream that lasts minutes, that would hold a database
+    connection and an open transaction (and its table locks) for the whole stream.
+    """
+    with SessionLocal() as db:
+        return get_current_user(db=db, token=token).id
+
+
 @router.get("/stream")
-async def stream(request: Request, after: int = Query(0, ge=0), current_user: User = Depends(get_current_user)):
+async def stream(request: Request, after: int = Query(0, ge=0), user_id: int = Depends(stream_user_id)):
     """
     Server-sent events: pushes each new notification for the signed-in user as it is created.
     The stream ends after a few minutes and the browser reconnects, re-authenticating each time.
+    Each check uses its own brief database session, so an open stream holds no connection.
     """
-    user_id = current_user.id
 
     async def events():
         last_id = after
