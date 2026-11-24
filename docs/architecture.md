@@ -317,7 +317,7 @@ Quests give people a reason to come back each week and give managers a way to ra
 
 ## 6. Features that run in the browser
 
-Both features are written as pure, testable modules in `frontend/src/lib/`, with thin UI components on top.
+All four are written as pure, testable modules in `frontend/src/lib/`, with thin UI components on top.
 
 ### 6.1 Receipt scanner
 
